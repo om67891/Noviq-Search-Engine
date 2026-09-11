@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-inter);
+  
+  --color-navy-900: #0a1128;
+  --color-navy-800: #121e42;
+  --color-navy-700: #1a2a5c;
+  
+  --color-brand-cyan: #00f2fe;
+  --color-brand-blue: #4facfe;
+  --color-brand-violet: #8e2de2;
+  
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f8fafc;
+  --color-bg-tertiary: #f1f5f9;
+  
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #94a3b8;
+}
+
+@layer base {
+  body {
+    @apply bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] antialiased min-h-screen flex flex-col;
+  }
+}
+
+.gradient-text {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-[var(--color-brand-cyan)] via-[var(--color-brand-blue)] to-[var(--color-brand-violet)];
+}
+
+.gradient-bg {
+  @apply bg-gradient-to-r from-[var(--color-brand-cyan)] via-[var(--color-brand-blue)] to-[var(--color-brand-violet)];
+}

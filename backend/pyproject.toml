@@ -1,0 +1,36 @@
+[project]
+name = "backend"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Om8624870806", email = "158021399+Om8624870806@users.noreply.github.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "alembic>=1.19.2",
+    "beautifulsoup4>=4.12.3",
+    "fastapi[standard]>=0.141.1",
+    "httpx>=0.28.1",
+    "langgraph>=1.2.11",
+    "opensearch-py>=3.2.0",
+    "psycopg>=3.3.5",
+    "psycopg-binary>=3.3.5",
+    "pydantic>=2.13.5",
+    "pydantic-settings>=2.15.0",
+    "pytest>=9.1.1",
+    "python-dotenv>=1.2.3",
+    "qdrant-client>=1.19.0",
+    "redis>=8.1.0",
+    "sentence-transformers>=3.0.0",
+    "sqlalchemy>=2.0.52",
+    "torch>=2.4.0",
+    "trafilatura>=1.9.0",
+]
+
+[project.scripts]
+backend = "backend:main"
+
+[build-system]
+requires = ["uv_build>=0.12.13,<0.13.0"]
+build-backend = "uv_build"

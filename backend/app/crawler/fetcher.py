@@ -1,0 +1,65 @@
+import httpx
+import logging
+import asyncio
+from typing import Optional
+
+logger = logging.getLogger(__name__)
+
+class Fetcher:
+    """HTTP fetcher with timeouts, limits, and retry policies."""
+    
+    def __init__(self, timeout: int = 15, max_retries: int = 2, max_size: int = 5 * 1024 * 1024):
+        self.timeout = timeout
+        self.max_retries = max_retries
+        self.max_size = max_size
+        self.user_agent = "Noviq/1.0 (Research Crawler)"
+        
+    async def fetch_page(self, url: str) -> tuple[Optional[str], int, Optional[str]]:
+        """
+        Fetches the HTML content of a URL.
+        Returns (content, status_code, failure_reason)
+        """
+        headers = {"User-Agent": self.user_agent}
+        
+        for attempt in range(self.max_retries + 1):
+            try:
+                async with httpx.AsyncClient(
+                    timeout=self.timeout,
+                    follow_redirects=True,
+                    headers=headers
+                ) as client:
+                    
+                    response = await client.get(url)
+                    
+                    # Check size before reading everything if possible
+                    content_length = response.headers.get("Content-Length")
+                    if content_length and int(content_length) > self.max_size:
+                        return None, response.status_code, "Response too large"
+                        
+                    # Also check content length after reading
+                    content = response.text
+                    if len(content.encode("utf-8")) > self.max_size:
+                        return None, response.status_code, "Response body too large"
+                        
+                    response.raise_for_status()
+                    return content, response.status_code, None
+                    
+            except httpx.TimeoutException:
+                reason = f"HTTP timeout after {self.timeout} seconds"
+                logger.warning(f"Attempt {attempt + 1}: {reason} for {url}")
+                if attempt == self.max_retries:
+                    return None, 0, reason
+            except httpx.HTTPStatusError as e:
+                reason = f"HTTP error {e.response.status_code}"
+                logger.warning(f"Attempt {attempt + 1}: {reason} for {url}")
+                if attempt == self.max_retries or e.response.status_code in [400, 401, 403, 404]:
+                    return None, e.response.status_code, reason
+            except Exception as e:
+                reason = f"Network or generic error: {str(e)}"
+                logger.warning(f"Attempt {attempt + 1}: {reason} for {url}")
+                if attempt == self.max_retries:
+                    return None, 0, reason
+            
+            await asyncio.sleep(2 ** attempt) # Exponential backoff
+            
+        return None, 0, "Max retries exceeded"
