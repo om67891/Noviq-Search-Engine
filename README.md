@@ -2,79 +2,61 @@
 
 > **Search. Verify. Discover.**
 
-Noviq is a final-year engineering research project representing a state-of-the-art **Trust-Aware Multi-Agent AI Search Engine**. Built to tackle the critical challenges of "Black Box AI", Hallucinations, and Prompt Injections, Noviq provides a deterministic, highly transparent, and secure search pipeline that verifies evidence before generating answers.
+Noviq is a Trust-Aware Multi-Agent AI Search Engine with Explainable Retrieval, RRF Hybrid Search, and Prompt Injection Defense.
 
-## Key Features
+## Overview
+Noviq merges traditional Keyword BM25 retrieval with Semantic Dense Vector retrieval, governed by an Agentic safety graph. Rather than generating answers unconditionally, Noviq strictly audits the retrieval provenance, evaluates domain trust, and checks for conflicting evidence before yielding a response.
 
-- **Multi-Agent Orchestration**: LangGraph-powered dynamic workflow routing consisting of Planners, Retrieval Agents, Source Verification, Evidence Aggregators, and Conflict Detectors.
-- **Explainability & Transparency**: Answers are returned alongside verifiable Trust metrics, Conflict detection logs, Confidence bounds, and a complete Execution Trace visible in the Next.js frontend. 
-- **Security & Prompt Injection Defense**: Web context is strictly treated as UNTRUSTED DATA. Security gates analyze sources and strip adversarial injections before they can enter the LLM reasoning context.
-- **Trust-Aware Ranking**: Domain authorities, `HTTPS` status, `gov/edu` TLDs, and recency heuristically boost results, ensuring higher-quality evidence wins out.
-- **Hybrid Retrieval Fallback**: Queries evaluate via vector embeddings (`BAAI/bge-small-en-v1.5`) mapped to a **Qdrant** collection, fused via RRF with **OpenSearch** BM25 Keyword algorithms to guarantee fallback resilience.
+## Current Architecture
+- **Frontend**: Next.js 14, TailwindCSS, React Markdown.
+- **Backend API**: FastAPI.
+- **Lexical Retrieval**: OpenSearch (BM25).
+- **Semantic Retrieval**: Qdrant (BAAI/bge-small-en-v1.5 384-dimensional vectors).
+- **Fusion**: Reciprocal Rank Fusion (RRF, k=60).
+- **Database**: PostgreSQL (Metadata & Ingestion Tracking).
+- **Agentic Layer**: LangGraph.
+- **LLM Engine**: MockLLM (Deterministic for local evaluation/testing).
 
-## Architecture & Technology Stack
+## Features
+- **Semantic Relevance Gating**: Hard-enforced cosine similarity thresholds (0.65) to prevent noisy generation.
+- **Hybrid RRF Fusion**: Merges keyword and vector scores gracefully with fallback mechanics.
+- **Security Gate**: Analyzes retrieval text for Prompt Injection attacks and excludes malicious payload sources.
+- **Trust-Aware Ranking**: Sources are scored via HTTPS, TLD, Citation signals, and Freshness.
+- **Agentic Insufficient Evidence**: The Agent explicitly halts and explains when local corpora lack sufficient evidence, preventing hallucination.
+- **Deterministic Evaluation**: Ships with a 25-document Golden Dataset for mathematically rigorous Precision, Recall, MRR, and NDCG calculations.
 
-**Frontend**
-- Next.js (React 19)
-- Tailwind CSS v4
-- Playwright E2E Testing
-- `react-markdown` (Safe output rendering)
+## Run Noviq Locally
 
-**Backend**
-- Python 3.12 (FastAPI)
-- LangGraph (Agentic Workflow orchestration)
-- Qdrant (Vector Database)
-- OpenSearch (BM25 Indexing)
-- PostgreSQL (Source Metadata)
-- Redis (Session Caching)
-
-## Getting Started
-
-### 1. Requirements
-- Docker & Docker Compose
-- Node.js (v20+)
-- Python 3.12+ (uv or standard venv)
-
-### 2. Infrastructure Setup
-Boot up the critical local infrastructure components.
+### 1. Start Infrastructure
 ```bash
 docker compose up -d
 ```
-*(This starts PostgreSQL, Qdrant, OpenSearch, and Redis on your local machine)*
+Starts PostgreSQL, OpenSearch, Qdrant, and Redis.
 
-### 3. Backend Setup
+### 2. Configure Environment
+Copy `.env.example` to `.env`. Noviq runs entirely locally by default without requiring external API keys.
+
+### 3. Run Backend (Uvicorn)
 ```bash
 cd backend
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-alembic upgrade head
-uvicorn app.main:app --port 8000
+python -m uvicorn app.main:app --port 8000
 ```
 
-### 4. Frontend Setup
+### 4. Run Frontend (Next.js)
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-Navigate to `http://localhost:3000` to begin interacting with the Noviq Engine.
+### 5. Run Evaluation
+```bash
+cd backend
+python scripts/seed_golden_dataset.py
+python scripts/evaluate_search.py
+```
 
-## Search Modes
-Noviq natively supports 4 distinct modes selectable in the UI:
-1. **Keyword**: Raw BM25 algorithm execution against the OpenSearch index.
-2. **Semantic**: Vector proximity search utilizing local embeddings.
-3. **Hybrid**: RRF-fused list combining Semantic context meaning and Keyword strict matching.
-4. **Agentic**: Kicks off the multi-agent asynchronous pipeline. This evaluates trust, maps contradictions, generates safe citations, and prevents hallucination.
-
-## Evaluation & Testing Methodology
-The Noviq project has been fully audited against a structured 30-phase End-to-End matrix (available in `/docs`).
-- **Regression:** 24/24 `pytest` scenarios targeting LangGraph nodes and API boundaries.
-- **Frontend E2E:** `Playwright` automated suite evaluating mode selections, loading states, and HTML injection prevention.
-- **Quality Evaluation:** Precision/Recall evaluation against a diverse mock dataset simulating ambiguous, factual, and security-testing queries.
-
-## Known Limitations & Future Work
-- **Local Embedding Scaling:** Current execution utilizes CPU bounding for local vectors. Migrating to GPU-bound embeddings would drastically improve scale times.
-- **Corpus Ingestion:** Real live ingestion using Common Crawl is constrained by disk and memory without cloud-scale deployment infrastructure.
-- **Deterministic Evaluation:** Current speed tests simulate large LLM generation by utilizing MockLLMs; utilizing GPT-4 or Claude 3.5 in production will result in inherently slower agentic response loops.
+## Disclaimer / Known Limitations
+- The current system is tuned for a local deterministic synthetic corpus. It does not perform active real-time internet scraping in this baseline mode.
+- MockLLM is active to avoid token costs during local CI/CD testing. To use OpenAI/Anthropic, override `LLM_PROVIDER` in your `.env`.
+- Semantic Thresholds (0.65) are optimized for `bge-small-en-v1.5` on English texts.

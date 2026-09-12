@@ -20,13 +20,20 @@ class SecurityAnalyzer:
             r"ignore\s+all\s+instructions",
             r"disregard\s+(the\s+)?previous\s+instructions",
             r"disregard\s+(the\s+)?system\s+message",
+            r"disregard\s+all\s+safety",
+            r"disregard\s+(all\s+)?guidelines",
             r"reveal\s+(your\s+)?(system\s+)?prompt",
             r"reveal\s+hidden\s+instructions",
             r"act\s+as\s+(an\s+)?administrator",
             r"override\s+(previous\s+)?instructions",
             r"follow\s+these\s+instructions\s+instead",
             r"execute\s+(the\s+)?following\s+command",
-            r"send\s+(your\s+)?credentials"
+            r"send\s+(your\s+)?credentials",
+            r"you\s+are\s+now\s+\w+",           # "you are now DAN"
+            r"do\s+anything\s+now",             # DAN: Do Anything Now
+            r"jailbreak",
+            r"system\s+message\s*:",
+            r"developer\s+message\s*:",
         ]
         self._compiled_patterns = [re.compile(p) for p in self.injection_patterns]
         

@@ -104,7 +104,8 @@ class QdrantStore:
             results = self.client.query_points(
                 collection_name=self.collection_name,
                 query=query_vector,
-                limit=limit
+                limit=limit,
+                score_threshold=settings.SEMANTIC_SCORE_THRESHOLD
             )
             
             # Extract points from QueryResponse
