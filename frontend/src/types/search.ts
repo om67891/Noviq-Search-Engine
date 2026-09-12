@@ -21,6 +21,12 @@ export interface Conflict {
   source_ids: string[];
 }
 
+export interface DiscoveryMeta {
+  discovered: number;
+  indexed: number;
+  provider: string;
+}
+
 export interface SearchResult {
   id: string;
   url: string;
@@ -29,12 +35,28 @@ export interface SearchResult {
   snippet: string;
   score: number;
   retrieval_sources?: string[];
+  retrieval_source_label?: string;
   trust_score?: number;
   trust_level?: string;
   security_risk?: number;
   security_status?: string;
   verification_status?: string;
   trust_reasons?: string[];
+  source?: string;
+}
+
+export interface SearchResponse {
+  query: string;
+  mode: RetrievalMode;
+  page: number;
+  page_size: number;
+  total: number;
+  results: SearchResult[];
+  retrieval_source?: string;
+  discovery_meta?: DiscoveryMeta;
+  generated_at: string;
+  latency_ms?: number;
+  warnings?: string[];
 }
 
 export interface AgenticSearchResponse {
@@ -49,4 +71,23 @@ export interface AgenticSearchResponse {
   sources: SearchResult[];
   latency: number;
   insufficient_evidence: boolean;
+  discovery_meta?: DiscoveryMeta;
 }
+
+export type SortKey = 'relevance' | 'trust' | 'domain';
+export type SourceFilter = 'all' | 'bm25' | 'vector' | 'both';
+export type TrustFilter = 'any' | 'low' | 'medium' | 'high';
+
+export interface FilterState {
+  sort: SortKey;
+  source: SourceFilter;
+  minTrust: TrustFilter;
+  safeOnly: boolean;
+}
+
+export const DEFAULT_FILTERS: FilterState = {
+  sort: 'relevance',
+  source: 'all',
+  minTrust: 'any',
+  safeOnly: false,
+};
