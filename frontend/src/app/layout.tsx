@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { TopNav } from "@/components/TopNav";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -54,7 +55,7 @@ export default function RootLayout({
             backgroundColor: "color-mix(in srgb, var(--color-bg-primary) 85%, transparent)",
           }}
         >
-          <div className="container mx-auto px-4 h-14 flex items-center justify-between gap-4">
+          <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-4">
             {/* Brand */}
             <a href="/" className="flex items-center gap-2 flex-shrink-0">
               <span className="text-xl font-extrabold tracking-tight" style={{ color: "var(--color-text-primary)" }}>
@@ -73,27 +74,12 @@ export default function RootLayout({
             </a>
 
             {/* Nav */}
-            <nav className="hidden md:flex items-center gap-5 text-sm font-medium flex-1 justify-center">
-              {[
-                { href: "/", label: "Search" },
-                { href: "http://localhost:8000/docs", label: "API Docs", external: true },
-                { href: "http://localhost:8000/api/v1/health", label: "Health", external: true },
-              ].map((link) => (
-                <a
-                  key={link.label}
-                  href={link.href}
-                  target={link.external ? "_blank" : undefined}
-                  rel={link.external ? "noopener noreferrer" : undefined}
-                  className="transition-colors hover:opacity-80"
-                  style={{ color: "var(--color-text-secondary)" }}
-                >
-                  {link.label}
-                </a>
-              ))}
-            </nav>
+            <div className="hidden md:flex flex-1">
+              <TopNav />
+            </div>
 
             {/* Right actions */}
-            <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-center gap-4 flex-shrink-0">
               {/* Keyboard shortcut hint */}
               <span
                 className="hidden lg:flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg"
@@ -107,6 +93,9 @@ export default function RootLayout({
                 <span>to search</span>
               </span>
               <ThemeToggle />
+              <div className="w-8 h-8 rounded-full bg-[var(--color-brand-blue)] text-white flex items-center justify-center font-bold text-sm">
+                S
+              </div>
             </div>
           </div>
         </header>

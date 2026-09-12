@@ -100,27 +100,36 @@ export function ResultCard({ result, index, layout }: Props) {
       <div className="flex items-start gap-3">
         <Favicon domain={result.domain ?? ""} />
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap mb-1">
-            <span className="text-xs font-semibold px-2 py-0.5 rounded"
-              style={{ background: "var(--color-bg-tertiary)", color: "var(--color-text-secondary)" }}>
+          <div className="flex items-center gap-2 flex-wrap mb-0.5">
+            <span className="text-xs font-semibold"
+              style={{ color: "var(--color-text-primary)" }}>
               {result.domain}
             </span>
-            {result.retrieval_source_label === "live_web" && (
-              <Badge variant="live">🌐 Live</Badge>
-            )}
-            {result.retrieval_sources?.includes("bm25") && <Badge variant="bm25">BM25</Badge>}
-            {result.retrieval_sources?.includes("vector") && <Badge variant="semantic">Semantic</Badge>}
+            <span style={{ color: "var(--color-text-muted)", fontSize: "10px" }}>›</span>
+            <span className="text-[11px] truncate" style={{ color: "var(--color-text-secondary)", maxWidth: "200px" }}>
+              {result.url.replace(/^https?:\/\/(www\.)?/, '')}
+            </span>
+            <div className="ml-2 flex items-center gap-1.5">
+              {result.retrieval_source_label === "live_web" && (
+                <Badge variant="live">🌐 Live</Badge>
+              )}
+              {result.retrieval_sources?.includes("bm25") && <Badge variant="bm25">BM25</Badge>}
+              {result.retrieval_sources?.includes("vector") && <Badge variant="semantic">Semantic</Badge>}
+            </div>
           </div>
-          <a
-            href={result.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[10px] hover:underline truncate block"
-            style={{ color: "var(--color-text-muted)", maxWidth: "100%" }}
-            title={result.url}
-          >
-            {result.url}
-          </a>
+          
+          {/* Title */}
+          <h2 className="text-[17px] font-bold leading-tight mb-1">
+            <a
+              href={result.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:underline transition-colors"
+              style={{ color: "#1a0dab" }} // Google blue
+            >
+              {result.title || result.url}
+            </a>
+          </h2>
         </div>
 
         {/* Actions */}
@@ -159,24 +168,16 @@ export function ResultCard({ result, index, layout }: Props) {
         </div>
       </div>
 
-      {/* Title */}
-      <h2 className="text-base font-bold leading-snug">
-        <a
-          href={result.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hover:underline transition-colors"
-          style={{ color: "var(--color-brand-blue)" }}
-        >
-          {result.title || result.url}
-        </a>
-      </h2>
+      {/* Actions */}
+      {/* (Moved to end of card to clean up the header) */}
 
       {/* Snippet */}
       {result.snippet && (
-        <p className="text-sm leading-relaxed" style={{ color: "var(--color-text-secondary)" }}>
-          {isGrid ? result.snippet.slice(0, 160) + (result.snippet.length > 160 ? "…" : "") : result.snippet}
-        </p>
+        <p
+          className={`text-sm leading-relaxed prose prose-sm dark:prose-invert max-w-none ${isGrid ? 'line-clamp-3' : 'line-clamp-2'}`}
+          style={{ color: "var(--color-text-secondary)" }}
+          dangerouslySetInnerHTML={{ __html: result.snippet }}
+        />
       )}
 
       {/* Trust bar + badges row */}

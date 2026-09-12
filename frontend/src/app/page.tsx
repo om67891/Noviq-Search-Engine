@@ -19,6 +19,7 @@ import { ResultCard }      from "@/components/ResultCard";
 import { AgenticPanel }    from "@/components/AgenticPanel";
 import { FilterPanel }     from "@/components/FilterPanel";
 import { StatsBar }        from "@/components/StatsBar";
+import { Sidebar }         from "@/components/Sidebar";
 import { useSearchHistory } from "@/hooks/useSearchHistory";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -159,22 +160,25 @@ export default function Home() {
   }, [clearHistory, removeHistory]);
 
   return (
-    <div
-      className="flex flex-col items-center min-h-[calc(100vh-4rem)] px-4 transition-all duration-500"
-      style={{ paddingTop: hasSearched ? "2rem" : "0" }}
-    >
-      {/* ── Hero / Search bar area ───────────────────────────────────────── */}
-      <div
-        className={`flex flex-col items-center gap-4 w-full transition-all duration-500 ${
-          hasSearched ? "max-w-5xl" : "max-w-3xl justify-center min-h-[calc(100vh-4rem)]"
-        }`}
-      >
-        {/* Brand */}
-        <div className={`text-center transition-all duration-500 ${hasSearched ? "mb-0" : "mb-4"}`}>
-          <h1 className={`font-extrabold tracking-tight transition-all duration-500 ${hasSearched ? "text-3xl" : "text-6xl md:text-7xl"}`}
-            style={{ color: "var(--color-text-primary)" }}>
-            N<span className="gradient-text">o</span>viq
-          </h1>
+    <div className="container mx-auto flex gap-6 px-4 pb-20 mt-4 min-h-[calc(100vh-4rem)]">
+      {/* ── Left Sidebar (Yahoo Style) ────────────────────────────────── */}
+      <Sidebar />
+
+      {/* ── Main Content Area ─────────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col min-w-0 transition-all duration-500">
+        
+        {/* ── Hero / Search bar area ───────────────────────────────────────── */}
+        <div
+          className={`flex flex-col gap-4 w-full transition-all duration-500 ${
+            hasSearched ? "max-w-4xl" : "max-w-3xl self-center mt-12"
+          }`}
+        >
+          {/* Brand */}
+          <div className={`transition-all duration-500 ${hasSearched ? "mb-0" : "mb-4 text-center"}`}>
+            <h1 className={`font-extrabold tracking-tight transition-all duration-500 ${hasSearched ? "text-3xl" : "text-6xl md:text-7xl"}`}
+              style={{ color: "var(--color-text-primary)" }}>
+              N<span className="gradient-text">o</span>viq
+            </h1>
           {!hasSearched && (
             <div className="mt-3 space-y-2 animate-fade-in">
               <p className="text-xl font-medium" style={{ color: "var(--color-text-secondary)" }}>
@@ -402,6 +406,32 @@ export default function Home() {
                   </div>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+      </div>
+
+      {/* ── Right Sidebar / Extra Widgets (Optional) ──────────────────── */}
+      {!hasSearched && (
+        <div className="hidden xl:flex w-80 flex-col gap-4">
+          <div className="card p-4 animate-fade-in" style={{ animationDelay: "100ms" }}>
+            <h3 className="font-bold mb-3" style={{ color: "var(--color-text-primary)" }}>Trending Now</h3>
+            <ul className="text-sm space-y-3" style={{ color: "var(--color-text-secondary)" }}>
+              <li className="flex gap-3 hover:underline cursor-pointer"><span className="text-xs font-mono font-bold" style={{ color: "var(--color-brand-blue)" }}>01</span> Anthropic CEO urges AI slowdown</li>
+              <li className="flex gap-3 hover:underline cursor-pointer"><span className="text-xs font-mono font-bold" style={{ color: "var(--color-brand-blue)" }}>02</span> Global stock market rally</li>
+              <li className="flex gap-3 hover:underline cursor-pointer"><span className="text-xs font-mono font-bold" style={{ color: "var(--color-brand-blue)" }}>03</span> New space telescope images</li>
+              <li className="flex gap-3 hover:underline cursor-pointer"><span className="text-xs font-mono font-bold" style={{ color: "var(--color-brand-blue)" }}>04</span> AI regulation framework</li>
+            </ul>
+          </div>
+          <div className="card p-4 animate-fade-in" style={{ animationDelay: "200ms" }}>
+            <h3 className="font-bold mb-3" style={{ color: "var(--color-text-primary)" }}>Weather</h3>
+            <div className="flex items-center gap-4">
+              <span className="text-4xl">⛅</span>
+              <div>
+                <div className="text-xl font-bold" style={{ color: "var(--color-text-primary)" }}>72°F</div>
+                <div className="text-sm" style={{ color: "var(--color-text-secondary)" }}>Partly Cloudy</div>
+              </div>
             </div>
           </div>
         </div>
