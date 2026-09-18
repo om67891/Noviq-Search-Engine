@@ -1,6 +1,4 @@
 import logging
-import torch
-from sentence_transformers import SentenceTransformer
 from typing import List, Optional
 from app.core.config import settings
 
@@ -19,12 +17,14 @@ class EmbeddingService:
         if settings.EMBEDDING_DEVICE == "cpu":
             return "cpu"
         
-        if torch.cuda.is_available():
-            return "cuda"
-        
-        # Apple Silicon (MPS) is not explicitly requested, but good practice
-        if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-            return "mps"
+        try:
+            import torch
+            if torch.cuda.is_available():
+                return "cuda"
+            if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                return "mps"
+        except ImportError:
+            pass
             
         return "cpu"
 
@@ -33,6 +33,8 @@ class EmbeddingService:
             device = self._get_device()
             logger.info(f"Loading embedding model: {settings.EMBEDDING_MODEL} on device: {device}")
             try:
+                import torch
+                from sentence_transformers import SentenceTransformer
                 self._model = SentenceTransformer(settings.EMBEDDING_MODEL, device=device)
                 logger.info("Embedding model loaded successfully.")
             except Exception as e:
