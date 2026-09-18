@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { RetrievalMode } from "@/types/search";
+import { NoviqIcon } from "@/components/NoviqIcon";
 
 interface Props {
   query: string;
@@ -11,6 +12,7 @@ interface Props {
   mode: RetrievalMode;
   history: string[];
   onRemoveHistory: (q: string) => void;
+  glass?: boolean;
 }
 
 const SUGGESTIONS = [
@@ -29,6 +31,7 @@ export function SearchBar({
   mode,
   history,
   onRemoveHistory,
+  glass,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -104,20 +107,17 @@ export function SearchBar({
 
       <form
         onSubmit={handleSubmit}
-        className="relative flex items-center rounded-2xl shadow-sm border"
+        className={`relative flex items-center rounded-2xl shadow-sm border ${glass ? 'backdrop-blur-xl bg-white/20 dark:bg-black/40' : ''}`}
         style={{
-          background: "var(--color-bg-card)",
-          borderColor: open ? "var(--color-border-focus)" : "var(--color-border)",
+          background: glass ? undefined : "var(--color-bg-card)",
+          borderColor: open ? "var(--color-border-focus)" : (glass ? "rgba(255,255,255,0.2)" : "var(--color-border)"),
           boxShadow: open ? "0 0 0 3px rgba(79,172,254,0.15)" : undefined,
           transition: "border-color 0.2s, box-shadow 0.2s",
         }}
       >
-        {/* Search icon */}
-        <div className="pl-4 pr-2 flex-shrink-0" style={{ color: "var(--color-text-muted)" }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
+        {/* Brand Icon */}
+        <div className="pl-4 pr-2 flex-shrink-0 flex items-center justify-center">
+          <NoviqIcon className="w-5 h-5 drop-shadow-md hover:scale-110 transition-transform" />
         </div>
 
         <input

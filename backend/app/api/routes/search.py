@@ -22,6 +22,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 from app.pipeline.live_search import LiveSearchPipeline
 from app.retrieval.hybrid_search import HybridSearchEngine
+from app.api.widgets import get_widget_for_query
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -160,4 +161,5 @@ async def search(
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "latency_ms": latency_ms,
         "warnings": warnings,
+        "widget": get_widget_for_query(q),
     }

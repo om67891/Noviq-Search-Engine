@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from app.graph.workflow import AgenticSearchWorkflow
 import time
 import logging
+from app.api.widgets import get_widget_for_query
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +27,7 @@ class AgenticSearchResponse(BaseModel):
     insufficient_evidence: bool
     execution_trace: List[str]
     latency: float
+    widget: Optional[Dict[str, Any]] = None
 
 @router.post("/", response_model=AgenticSearchResponse)
 async def search_agentic(request: AgenticSearchRequest) -> Any:
@@ -67,7 +69,8 @@ async def search_agentic(request: AgenticSearchRequest) -> Any:
             sources=formatted_sources,
             insufficient_evidence=final_state.get("insufficient_evidence", False),
             execution_trace=final_state.get("execution_trace", []),
-            latency=latency
+            latency=latency,
+            widget=get_widget_for_query(request.query)
         )
     except Exception as e:
         logger.error(f"Agentic search API failed: {e}")

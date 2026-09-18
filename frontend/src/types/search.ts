@@ -45,6 +45,13 @@ export interface SearchResult {
   source?: string;
 }
 
+export type WidgetType = 'weather' | 'finance';
+
+export interface WidgetData {
+  type: WidgetType;
+  data: any;
+}
+
 export interface SearchResponse {
   query: string;
   mode: RetrievalMode;
@@ -57,6 +64,7 @@ export interface SearchResponse {
   generated_at: string;
   latency_ms?: number;
   warnings?: string[];
+  widget?: WidgetData;
 }
 
 export interface AgenticSearchResponse {
@@ -72,6 +80,7 @@ export interface AgenticSearchResponse {
   latency: number;
   insufficient_evidence: boolean;
   discovery_meta?: DiscoveryMeta;
+  widget?: WidgetData;
 }
 
 export type SortKey = 'relevance' | 'trust' | 'domain';
