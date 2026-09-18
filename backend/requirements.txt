@@ -275,6 +275,8 @@ psycopg==3.3.5
     # via backend
 psycopg-binary==3.3.5
     # via backend
+psycopg2-binary==2.9.13
+    # via backend
 pydantic==2.13.5
     # via
     #   backend
