@@ -232,11 +232,11 @@ export default function Home() {
           backgroundColor: "color-mix(in srgb, var(--color-bg-primary) 85%, transparent)",
         }}
       >
-        <div className="container mx-auto px-4 h-16 flex items-center gap-6">
+        <div className="container mx-auto px-2 md:px-4 h-16 flex items-center gap-2 md:gap-6">
           {/* Small Brand Logo */}
           <button onClick={goHome} className="flex items-center gap-2 flex-shrink-0 transition-opacity hover:opacity-80">
             <NoviqIcon className="w-8 h-8" />
-            <span className="text-2xl font-extrabold tracking-tight" style={{ color: "var(--color-text-primary)" }}>
+            <span className="hidden sm:inline-block text-2xl font-extrabold tracking-tight" style={{ color: "var(--color-text-primary)" }}>
               N<span className="gradient-text">o</span>viq
             </span>
           </button>

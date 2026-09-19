@@ -131,7 +131,7 @@ export function SearchBar({
           onKeyDown={handleKeyDown}
           disabled={loading}
           autoComplete="off"
-          className="flex-1 bg-transparent border-none outline-none text-base py-3.5 px-2 disabled:opacity-50"
+          className="flex-1 min-w-0 bg-transparent border-none outline-none text-sm md:text-base py-2.5 md:py-3.5 px-2 disabled:opacity-50"
           style={{ color: "var(--color-text-primary)" }}
           aria-autocomplete="list"
           aria-expanded={open && items.length > 0}
@@ -157,17 +157,24 @@ export function SearchBar({
         <button
           type="submit"
           disabled={loading || !query.trim()}
-          className="gradient-bg text-white px-5 py-2.5 m-1.5 rounded-xl font-semibold text-sm shadow-md hover:opacity-90 hover:shadow-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 flex-shrink-0"
+          className="gradient-bg text-white px-3 md:px-5 py-1.5 md:py-2.5 m-1 md:m-1.5 rounded-lg md:rounded-xl font-semibold text-xs md:text-sm shadow-md hover:opacity-90 hover:shadow-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 flex-shrink-0"
         >
           {loading ? (
             <>
               <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path d="M21 12a9 9 0 11-6.219-8.56" />
               </svg>
-              Searching
+              <span className="hidden sm:inline">Searching</span>
             </>
           ) : (
-            "Search"
+            <span className="hidden sm:inline">Search</span>
+          )}
+          {/* Always show a magnifying glass on mobile if not loading */}
+          {!loading && (
+             <svg className="sm:hidden" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+               <circle cx="11" cy="11" r="8" />
+               <line x1="21" y1="21" x2="16.65" y2="16.65" />
+             </svg>
           )}
         </button>
       </form>
