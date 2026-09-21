@@ -1,147 +1,183 @@
+"""
+PostgreSQL Full-Text Search client — replaces OpenSearch/Elasticsearch.
+
+Why: OpenSearch requires a separate running service (port 9200) which does not
+exist on Render's free tier. PostgreSQL (which is already deployed) has a
+built-in tsvector/tsquery full-text search engine that is production-ready
+and sufficient for keyword search on a live-web search engine.
+
+The same interface as the old OpenSearchClient is preserved so no other
+files need to change.
+"""
 import logging
-from typing import Dict, Any, List, Optional
-from opensearchpy import OpenSearch, helpers
-from app.core.config import settings
+from typing import Any, Dict, List, Optional
+
+from sqlalchemy import text
+
+from app.database.session import SessionLocal
 
 logger = logging.getLogger(__name__)
 
-class OpenSearchClient:
-    def __init__(self):
-        self.index_name = "noviq_pages"
-        
-        # We handle cases where OPENSEARCH_URL might not be fully configured yet
-        host = settings.OPENSEARCH_URL or "http://localhost:9200"
-        
-        auth = None
-        if settings.OPENSEARCH_USERNAME and settings.OPENSEARCH_PASSWORD:
-            auth = (settings.OPENSEARCH_USERNAME, settings.OPENSEARCH_PASSWORD)
-            
-        self.client = OpenSearch(
-            hosts=[host],
-            http_auth=auth,
-            use_ssl=host.startswith("https"),
-            verify_certs=False,
-            ssl_show_warn=False
-        )
-        
-    def ensure_index(self):
-        """Creates the index with BM25 mapping if it doesn't exist."""
-        try:
-            if not self.client.indices.exists(index=self.index_name):
-                mapping = {
-                    "mappings": {
-                        "properties": {
-                            "document_id": {"type": "keyword"},
-                            "url": {"type": "keyword"},
-                            "domain": {"type": "keyword"},
-                            "title": {
-                                "type": "text",
-                                "analyzer": "standard"
-                            },
-                            "content": {
-                                "type": "text",
-                                "analyzer": "standard"
-                            },
-                            "content_hash": {"type": "keyword"},
-                            "language": {"type": "keyword"},
-                            "trust_score": {"type": "integer"},
-                            "trust_level": {"type": "keyword"},
-                            "security_risk": {"type": "integer"},
-                            "security_status": {"type": "keyword"}
-                        }
-                    }
-                }
-                self.client.indices.create(index=self.index_name, body=mapping)
-                logger.info(f"Created OpenSearch index: {self.index_name}")
-        except Exception as e:
-            logger.error(f"Failed to ensure OpenSearch index: {e}")
 
-    def index_document(self, document_id: int, url: str, domain: str, title: Optional[str], content: str, content_hash: str, language: Optional[str] = None, trust_score: int = 0, trust_level: str = "Low", security_risk: int = 0, security_status: str = "SAFE"):
-        """Indexes a document into OpenSearch."""
-        doc = {
-            "document_id": str(document_id),
-            "url": url,
-            "domain": domain,
-            "title": title or "",
-            "content": content,
-            "content_hash": content_hash,
-            "language": language or "en",
-            "trust_score": trust_score,
-            "trust_level": trust_level,
-            "security_risk": security_risk,
-            "security_status": security_status
-        }
-        
+class OpenSearchClient:
+    """
+    Drop-in replacement for the OpenSearch client.
+    Uses PostgreSQL tsvector full-text search for BM25-style keyword retrieval.
+    All public method signatures are identical to the original OpenSearchClient.
+    """
+
+    def __init__(self):
+        # No external connection needed — uses the existing PostgreSQL session
+        self._ensure_fts_columns()
+
+    def _ensure_fts_columns(self):
+        """
+        Ensures the page_metadata table has a tsvector column for full-text search.
+        Creates a GIN index for fast search if it doesn't already exist.
+        Runs once on startup — safe to call multiple times.
+        """
+        db = SessionLocal()
         try:
-            self.client.index(
-                index=self.index_name,
-                body=doc,
-                id=str(document_id),
-                refresh=True
+            # Add search_vector column if not exists
+            db.execute(text("""
+                ALTER TABLE page_metadata
+                ADD COLUMN IF NOT EXISTS search_vector tsvector
+                    GENERATED ALWAYS AS (
+                        setweight(to_tsvector('english', coalesce(title, '')), 'A') ||
+                        setweight(to_tsvector('english', coalesce(content_snippet, '')), 'B')
+                    ) STORED;
+            """))
+
+            # Add GIN index for fast full-text search
+            db.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_page_metadata_fts
+                ON page_metadata USING GIN (search_vector);
+            """))
+
+            db.commit()
+            logger.info("PostgreSQL FTS column and index verified.")
+        except Exception as e:
+            # Column might already exist or table might not be set up yet — safe to ignore
+            db.rollback()
+            logger.warning(f"FTS setup note (may be safe to ignore): {e}")
+        finally:
+            db.close()
+
+    def ensure_index(self):
+        """Compatibility stub — no-op for PostgreSQL backend."""
+        pass
+
+    def index_document(
+        self,
+        document_id: int,
+        url: str,
+        domain: str,
+        title: Optional[str],
+        content: str,
+        content_hash: str,
+        language: Optional[str] = None,
+        trust_score: int = 0,
+        trust_level: str = "Low",
+        security_risk: int = 0,
+        security_status: str = "SAFE",
+    ) -> bool:
+        """
+        Stores a content snippet in PostgreSQL for full-text search.
+        Updates the content_snippet column on the existing page_metadata row.
+        """
+        # Store first 2000 chars as snippet for FTS
+        snippet = content[:2000] if content else ""
+
+        db = SessionLocal()
+        try:
+            db.execute(
+                text("""
+                    UPDATE page_metadata
+                    SET content_snippet = :snippet
+                    WHERE id = :doc_id
+                """),
+                {"snippet": snippet, "doc_id": document_id},
             )
+            db.commit()
             return True
         except Exception as e:
-            logger.error(f"Error indexing document {document_id}: {e}")
+            logger.error(f"FTS index_document error for id={document_id}: {e}")
+            db.rollback()
             return False
+        finally:
+            db.close()
 
     def search(self, query: str, limit: int = 10, offset: int = 0) -> Dict[str, Any]:
-        """Performs a BM25 lexical search."""
-        if not query.strip():
+        """
+        Performs full-text keyword search using PostgreSQL tsvector.
+        Returns results in the same format as the original OpenSearch client.
+        """
+        if not query or not query.strip():
             return {"total": 0, "results": []}
-            
-        body = {
-            "from": offset,
-            "size": limit,
-            "query": {
-                "multi_match": {
-                    "query": query,
-                    "fields": ["title^2", "content"],
-                    "type": "best_fields"
-                }
-            },
-            "highlight": {
-                "fields": {
-                    "content": {
-                        "fragment_size": 150,
-                        "number_of_fragments": 2
-                    }
-                }
-            }
-        }
-        
+
+        db = SessionLocal()
         try:
-            response = self.client.search(index=self.index_name, body=body)
-            
-            hits = response["hits"]["hits"]
-            total = response["hits"]["total"]["value"]
-            
+            # Use plainto_tsquery for natural language queries (handles multi-word gracefully)
+            rows = db.execute(
+                text("""
+                    SELECT
+                        id,
+                        url,
+                        domain,
+                        title,
+                        content_snippet,
+                        trust_score,
+                        trust_level,
+                        security_risk,
+                        security_status,
+                        ts_rank(search_vector, plainto_tsquery('english', :query)) AS rank
+                    FROM page_metadata
+                    WHERE
+                        search_vector @@ plainto_tsquery('english', :query)
+                        AND ingestion_status = 'INDEXED'
+                    ORDER BY rank DESC
+                    LIMIT :limit OFFSET :offset
+                """),
+                {"query": query, "limit": limit, "offset": offset},
+            ).fetchall()
+
+            # Count total matches
+            total_row = db.execute(
+                text("""
+                    SELECT COUNT(*)
+                    FROM page_metadata
+                    WHERE
+                        search_vector @@ plainto_tsquery('english', :query)
+                        AND ingestion_status = 'INDEXED'
+                """),
+                {"query": query},
+            ).fetchone()
+
+            total = total_row[0] if total_row else 0
+
             results = []
-            for hit in hits:
-                source = hit["_source"]
-                highlight = hit.get("highlight", {})
-                
-                # Use highlighted snippet or fall back to start of content
-                snippet = " ".join(highlight.get("content", []))
-                if not snippet and source.get("content"):
-                    snippet = source["content"][:150] + "..."
-                    
-                results.append({
-                    "id": source.get("document_id"),
-                    "url": source.get("url"),
-                    "domain": source.get("domain"),
-                    "title": source.get("title"),
-                    "snippet": snippet,
-                    "score": hit["_score"],
-                    "trust_score": source.get("trust_score", 0),
-                    "trust_level": source.get("trust_level", "Low"),
-                    "security_risk": source.get("security_risk", 0),
-                    "security_status": source.get("security_status", "SAFE")
-                })
-                
-            return {
-                "total": total,
-                "results": results
-            }
+            for row in rows:
+                snippet = row.content_snippet or ""
+                results.append(
+                    {
+                        "id": str(row.id),
+                        "url": row.url,
+                        "domain": row.domain,
+                        "title": row.title,
+                        "snippet": snippet[:300] + "..." if len(snippet) > 300 else snippet,
+                        "score": float(row.rank),
+                        "trust_score": row.trust_score or 0,
+                        "trust_level": row.trust_level or "Low",
+                        "security_risk": row.security_risk or 0,
+                        "security_status": row.security_status or "SAFE",
+                        "retrieval_sources": ["bm25"],
+                    }
+                )
+
+            return {"total": total, "results": results}
+
         except Exception as e:
-            logger.error(f"Search failed: {e}")
+            logger.error(f"PostgreSQL FTS search error: {e}")
             return {"total": 0, "results": []}
+        finally:
+            db.close()

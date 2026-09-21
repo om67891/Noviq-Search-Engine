@@ -18,6 +18,7 @@ class PageMetadata(Base):
     
     content_hash = Column(String, index=True, nullable=True)
     content_length = Column(Integer, nullable=True)
+    content_snippet = Column(Text, nullable=True)  # First 2000 chars for FTS
     language = Column(String, nullable=True)
     mime_type = Column(String, nullable=True)
     

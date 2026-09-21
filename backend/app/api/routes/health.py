@@ -2,7 +2,6 @@
 import logging
 from typing import Any, Dict
 
-import httpx
 from fastapi import APIRouter
 
 from app.core.config import settings
@@ -23,8 +22,9 @@ async def health_check() -> Dict[str, Any]:
     # PostgreSQL
     try:
         from app.database.session import SessionLocal
+        import sqlalchemy
         db = SessionLocal()
-        db.execute(__import__("sqlalchemy").text("SELECT 1"))
+        db.execute(sqlalchemy.text("SELECT 1"))
         db.close()
         services["postgres"] = "ok"
     except Exception as e:
@@ -34,20 +34,21 @@ async def health_check() -> Dict[str, Any]:
     try:
         from app.retrieval.qdrant_client import QdrantStore
         qs = QdrantStore()
-        # Try listing collections as a health check
         qs.client.get_collections()
         services["qdrant"] = "ok"
     except Exception as e:
         services["qdrant"] = f"error: {type(e).__name__}"
 
-    # OpenSearch
+    # PostgreSQL Full-Text Search (replaces OpenSearch)
     try:
-        from app.services.search.opensearch_client import OpenSearchClient
-        osc = OpenSearchClient()
-        osc.client.info()
-        services["opensearch"] = "ok"
+        from app.database.session import SessionLocal
+        import sqlalchemy
+        db = SessionLocal()
+        db.execute(sqlalchemy.text("SELECT to_tsvector('english', 'health check test')"))
+        db.close()
+        services["fts"] = "ok (postgresql tsvector)"
     except Exception as e:
-        services["opensearch"] = f"error: {type(e).__name__}"
+        services["fts"] = f"error: {type(e).__name__}"
 
     # Redis
     try:
@@ -62,6 +63,13 @@ async def health_check() -> Dict[str, Any]:
     except Exception as e:
         services["redis"] = f"error: {type(e).__name__}"
 
+    # HuggingFace Embeddings API
+    hf_key = getattr(settings, "HUGGINGFACE_API_KEY", None)
+    if hf_key:
+        services["embeddings"] = "huggingface api (configured)"
+    else:
+        services["embeddings"] = "huggingface api (key missing)"
+
     # Search Provider
     provider_name = getattr(settings, "SEARCH_PROVIDER", "ddg")
     brave_key = getattr(settings, "BRAVE_SEARCH_API_KEY", "") or ""
@@ -73,7 +81,9 @@ async def health_check() -> Dict[str, Any]:
     else:
         services["search_provider"] = "ddg (no API key required)"
 
-    overall = "healthy" if all(v == "ok" or "configured" in v for v in services.values()) else "degraded"
+    overall = "healthy" if all(
+        v.startswith("ok") or "configured" in v for v in services.values()
+    ) else "degraded"
 
     return {
         "status": overall,

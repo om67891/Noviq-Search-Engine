@@ -48,6 +48,7 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: Optional[str] = None
     ANTHROPIC_API_KEY: Optional[str] = None
     GOOGLE_API_KEY: Optional[str] = None
+    HUGGINGFACE_API_KEY: Optional[str] = None
     LLM_TIMEOUT: int = 30
     LLM_MAX_RETRIES: int = 2
 
