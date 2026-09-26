@@ -38,7 +38,14 @@ class OpenSearchClient:
         """
         db = SessionLocal()
         try:
-            # Add search_vector column if not exists
+            # Step 1: Ensure the snippet column exists first! (Silent failure fix)
+            db.execute(text("""
+                ALTER TABLE page_metadata
+                ADD COLUMN IF NOT EXISTS content_snippet TEXT;
+            """))
+            db.commit()
+
+            # Step 2: Now we can safely create the search_vector that depends on it
             db.execute(text("""
                 ALTER TABLE page_metadata
                 ADD COLUMN IF NOT EXISTS search_vector tsvector
