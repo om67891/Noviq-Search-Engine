@@ -42,10 +42,10 @@ def get_provider() -> SearchProvider:
             logger.info("Using Brave Search API provider.")
             return BraveSearchProvider(api_key=brave_key)
 
-    # DuckDuckGo fallback — no key required
-    from app.discovery.ddg import DDGSearchProvider
-    logger.info(
-        "Using DuckDuckGo HTML fallback provider (no API key). "
-        "For production, set BRAVE_SEARCH_API_KEY."
-    )
-    return DDGSearchProvider()
+    # SearXNG fallback — no key required, bypasses DDG IP blocks
+    from app.discovery.searx import SearxSearchProvider
+    if provider_name == "ddg":
+        logger.info("SEARCH_PROVIDER=ddg but falling back to SearXNG to avoid IP blocks.")
+        
+    logger.info("Using SearXNG public instances fallback provider (no API key).")
+    return SearxSearchProvider()
