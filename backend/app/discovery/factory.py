@@ -42,10 +42,19 @@ def get_provider() -> SearchProvider:
             logger.info("Using Brave Search API provider.")
             return BraveSearchProvider(api_key=brave_key)
 
-    # SearXNG fallback — no key required, bypasses DDG IP blocks
+    # HackerNews Algolia — always works from cloud IPs, no API key
+    if provider_name == "hn":
+        from app.discovery.hn import HNSearchProvider
+        logger.info("Using HackerNews Algolia provider.")
+        return HNSearchProvider()
+
+    # SearXNG — try first as it gives more general results
+    if provider_name == "searx":
+        from app.discovery.searx import SearxSearchProvider
+        logger.info("Using SearXNG public instances provider.")
+        return SearxSearchProvider()
+
+    # Default: SearXNG with HN as documented fallback
     from app.discovery.searx import SearxSearchProvider
-    if provider_name == "ddg":
-        logger.info("SEARCH_PROVIDER=ddg but falling back to SearXNG to avoid IP blocks.")
-        
-    logger.info("Using SearXNG public instances fallback provider (no API key).")
+    logger.info("Using SearXNG public instances as default discovery provider.")
     return SearxSearchProvider()
