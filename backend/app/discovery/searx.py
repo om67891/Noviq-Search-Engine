@@ -27,13 +27,19 @@ SEARX_INSTANCES = [
     "https://searx.perennialte.ch"
 ]
 
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+]
+
 class SearxSearchProvider(SearchProvider):
     """SearXNG API scraper — rotates through public instances, no API key required."""
 
     name = "searx"
     requires_api_key = False
 
-    def __init__(self, timeout: int = 15):
+    def __init__(self, timeout: int = 4):  # VERY short timeout so it jumps quickly
         self.timeout = timeout
 
     async def search(self, query: str, limit: int = 15) -> List[DiscoveredPage]:
@@ -50,7 +56,12 @@ class SearxSearchProvider(SearchProvider):
                     "format": "json",
                     "language": "en"
                 }
-                async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=True) as client:
+                headers = {
+                    "User-Agent": random.choice(USER_AGENTS),
+                    "Accept": "application/json, text/javascript, */*; q=0.01",
+                    "Accept-Language": "en-US,en;q=0.9",
+                }
+                async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=True, headers=headers) as client:
                     response = await client.get(url, params=params)
                     response.raise_for_status()
                     data = response.json()
