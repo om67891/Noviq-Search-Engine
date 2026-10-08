@@ -6,11 +6,13 @@ crashes Render's 512MB free tier. HuggingFace hosts the same model for free;
 we just make an HTTP call, using virtually zero local RAM.
 
 Model: BAAI/bge-small-en-v1.5 (same as before, same quality)
+
+If HuggingFace is unreachable (e.g. Render free tier DNS issues), the service
+gracefully disables itself and returns zero vectors. BM25 keyword search
+continues to work perfectly without embeddings.
 """
-import asyncio
 import logging
 import os
-import time
 from typing import List, Optional
 
 import httpx
@@ -19,12 +21,40 @@ logger = logging.getLogger(__name__)
 
 # HuggingFace Inference API endpoint for embeddings
 HF_API_URL = "https://api-inference.huggingface.co/models/BAAI/bge-small-en-v1.5"
-# Load dynamically so env var changes take effect without restart
-def _get_hf_key() -> str:
-    return os.environ.get("HUGGINGFACE_API_KEY", "")
 
-# Fallback: simple TF-IDF-style zero vector if HF is unavailable
+# Fallback: zero vector when HF is unavailable
 VECTOR_DIM = 384  # bge-small-en-v1.5 output dimension
+
+# Module-level flag — checked once, prevents repeated DNS failures
+_hf_available: Optional[bool] = None
+
+
+def _check_hf_once() -> bool:
+    """One-shot reachability check for HuggingFace API."""
+    global _hf_available
+    if _hf_available is not None:
+        return _hf_available
+
+    api_key = os.environ.get("HUGGINGFACE_API_KEY", "")
+    if not api_key:
+        _hf_available = False
+        logger.warning("HUGGINGFACE_API_KEY not set — embeddings disabled.")
+        return False
+
+    try:
+        # Quick HEAD request to check DNS + connectivity (5 second timeout)
+        with httpx.Client(timeout=5.0) as client:
+            response = client.head(
+                "https://api-inference.huggingface.co",
+                headers={"Authorization": f"Bearer {api_key}"},
+            )
+        _hf_available = True
+        logger.info("HuggingFace API is reachable — semantic embeddings enabled.")
+        return True
+    except Exception as e:
+        _hf_available = False
+        logger.warning(f"HuggingFace API unreachable — embeddings disabled for this session. ({e})")
+        return False
 
 
 class EmbeddingService:
@@ -35,23 +65,20 @@ class EmbeddingService:
             cls._instance = super(EmbeddingService, cls).__new__(cls)
         return cls._instance
 
-    async def _call_hf_api_async(self, texts: List[str], retries: int = 2) -> Optional[List[List[float]]]:
-        """
-        Call HuggingFace Inference API to get embeddings (async version).
-        Handles model cold-start (503) with retry. DNS errors fail fast.
-        """
-        api_key = _get_hf_key()
-        if not api_key:
-            logger.warning("HUGGINGFACE_API_KEY not set — embeddings will be zero vectors.")
+    def _call_hf_api(self, texts: List[str], retries: int = 2) -> Optional[List[List[float]]]:
+        """Call HuggingFace Inference API to get embeddings."""
+        # Fast exit if HF was already found unreachable
+        if not _check_hf_once():
             return None
 
+        api_key = os.environ.get("HUGGINGFACE_API_KEY", "")
         headers = {"Authorization": f"Bearer {api_key}"}
         payload = {"inputs": texts, "options": {"wait_for_model": True}}
 
         for attempt in range(retries):
             try:
-                async with httpx.AsyncClient(timeout=30.0) as client:
-                    response = await client.post(HF_API_URL, headers=headers, json=payload)
+                with httpx.Client(timeout=30.0) as client:
+                    response = client.post(HF_API_URL, headers=headers, json=payload)
 
                 if response.status_code == 200:
                     result = response.json()
@@ -61,41 +88,29 @@ class EmbeddingService:
                     return None
 
                 elif response.status_code == 503:
+                    import time
                     wait = 15 * (attempt + 1)
                     logger.warning(f"HuggingFace model loading, retrying in {wait}s... (attempt {attempt+1}/{retries})")
-                    await asyncio.sleep(wait)
+                    time.sleep(wait)
                     continue
 
                 else:
                     logger.error(f"HuggingFace API error {response.status_code}: {response.text[:200]}")
                     return None
 
-            except (httpx.ConnectError, httpx.TimeoutException) as e:
-                # DNS or connection failure — fail fast, no retry
-                logger.warning(f"HuggingFace unreachable (skipping embeddings): {e}")
+            except (httpx.ConnectError, httpx.TimeoutException):
+                # Network failure — mark as unavailable, stop trying
+                global _hf_available
+                _hf_available = False
+                logger.warning("HuggingFace became unreachable mid-session — disabling embeddings.")
                 return None
             except Exception as e:
                 logger.error(f"HuggingFace API call failed (attempt {attempt+1}): {e}")
                 if attempt < retries - 1:
-                    await asyncio.sleep(3)
+                    import time
+                    time.sleep(3)
 
         return None
-
-    def _call_hf_api(self, texts: List[str], retries: int = 2) -> Optional[List[List[float]]]:
-        """Sync wrapper — runs async version in event loop."""
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # Already in async context — schedule as coroutine
-                import concurrent.futures
-                with concurrent.futures.ThreadPoolExecutor() as pool:
-                    future = pool.submit(asyncio.run, self._call_hf_api_async(texts, retries))
-                    return future.result(timeout=60)
-            else:
-                return loop.run_until_complete(self._call_hf_api_async(texts, retries))
-        except Exception as e:
-            logger.warning(f"HuggingFace sync wrapper failed: {e}")
-            return None
 
     def _zero_vector(self) -> List[float]:
         """Returns a zero vector as fallback when API is unavailable."""
