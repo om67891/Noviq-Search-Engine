@@ -14,10 +14,17 @@ class QdrantStore:
         api_key = settings.QDRANT_API_KEY
         
         try:
-            self.client = QdrantClient(url=host, api_key=api_key)
+            self.client = QdrantClient(
+                url=host,
+                api_key=api_key,
+                prefer_grpc=False,          # Use REST, not gRPC (more reliable on Render)
+                check_compatibility=False,  # Skip version check that causes connection resets
+                timeout=10,
+            )
         except Exception as e:
             logger.error(f"Failed to initialize QdrantClient: {e}")
             self.client = None
+
             
         self._ensure_collection()
 
